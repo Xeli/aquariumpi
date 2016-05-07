@@ -1,0 +1,77 @@
+#!/usr/bin/python
+import RPi.GPIO as GPIO
+import signal
+import time
+import requests
+from datetime import datetime
+from relay import *
+
+averageTimespendPumping = 0
+isPumping = False
+timeStartedToPump = 0
+
+needsWaterPin = 21
+enoughWaterPin = 17
+pumpRelayId = 8
+
+def initialize():
+    setupRelayOUT(pumpRelayId)
+    setRelay(pumpRelayId, True)
+    GPIO.setup(needsWaterPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(enoughWaterPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+def signalHandler(signal, frame):
+    print("Shutting down..")
+    GPIO.cleanup()
+    setupRelayOUT(pumpRelayId)
+    setRelay(pumpRelayId, False)
+signal.signal(signal.SIGINT, signalHandler)
+
+def togglePump(active):
+    setRelay(pumpRelayId, not active)
+    data = {
+        "date": datetime.now().isoformat("T"),
+        "switchOn": active
+    }
+    try:
+        requests.put("http://reef.xeli.eu/api/ato-events", json=data);
+    except requests.exceptions.RequestException:
+        print "Connection error"
+
+    if active:
+        print("Energize!")
+    else:
+        print("Switching off..")
+
+def isActive(pin, duration):
+    for x in xrange(duration):
+       if GPIO.input(pin):
+           return False
+       time.sleep(0.5)
+    return True 
+
+initialize()
+
+while True:
+    if not isPumping and isActive(needsWaterPin, 20):
+        isPumping = True
+        timeStartedToPump = time.time()
+        averageTimespendPumping = 1000
+        try:
+            r = requests.get("http://reef.xeli.eu/api/ato-events/averageDuration")
+            if r.status_code == 200:
+                json = r.json()
+	        averageTimespendPumping = json["duration"]
+        except requests.exceptions.RequestException:
+            print "Connection error"
+
+        togglePump(True)
+
+    if isPumping:
+        print averageTimespendPumping
+	pumpingTooLong = (time.time() - timeStartedToPump) > (averageTimespendPumping * 2)
+        if isActive(enoughWaterPin, 2) or pumpingTooLong:
+            isPumping = False
+            togglePump(False)
+
+    time.sleep(0.2)

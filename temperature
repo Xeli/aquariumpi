@@ -1,0 +1,27 @@
+#!/usr/bin/python
+
+import subprocess
+import requests
+import time
+from datetime import datetime
+
+def getTemperature():
+    raw = subprocess.check_output(["owread", "-s", "localhost:3001", "/28435AB305000036/temperature"])
+    return float(raw.strip()) + 3.8
+
+while(True):
+    temp = getTemperature()
+    if temp != 88.8:
+        data = {
+            "date": datetime.now().isoformat("T"),
+            "value": temp
+        }
+        try:
+            r = requests.put("http://reef.xeli.eu/api/temperatures", json=data)
+            print r.text
+        except requests.exceptions.RequestException as e:
+            print "Connection error"
+            print e
+        print temp
+
+    time.sleep(5 * 60)
