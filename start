@@ -1,11 +1,18 @@
 #!/bin/sh
 
-logDir=`pwd`/logs
+logDir=/var/log/aquariumpi
 
+sudo mkdir $logDir
+sudo chown pi $logDir
+
+cd "$(dirname "$0")"
 sudo ./ato >> $logDir/ato.log 2>&1 &
 echo "Started ATO: $!"
 ./temperature >> $logDir/temperature.log 2>&1 &
 echo "Started Temperature: $!"
+
+./lights >> $logDir/lights.log 2>&1 &
+echo "Started lights: $!"
 
 cd ph
 sudo ./pHReader >> $logDir/ph.log 2>&1 &
