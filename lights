@@ -1,0 +1,101 @@
+#!/usr/bin/python
+
+import requests
+import datetime
+import dateutil.parser
+import time
+import pigpio
+import ephem
+
+blues  = [(0, 1), (10, 20), (40, 80), (70, 80), (100, 0)]
+whites = [(0, 1), (10, 20), (40, 50), (70, 50), (100, 0)]
+
+bluePins = [22, 9]
+whitePins = [10, 11]
+
+pi = pigpio.pi()
+
+def getSuntimes():
+    home = ephem.Observer()
+    home.lat  = '52.135317'
+    home.long = '5.031910'
+    home.elevation = 3
+    home.date = datetime.datetime.now().strftime('%Y/%m/%d')
+    
+    sun = ephem.Sun()
+    sun.compute(home)
+
+    return (home.next_rising(sun).datetime(), home.next_setting(sun).datetime())
+
+def getMoonphasePercentage():
+    now = datetime.datetime.now().date()
+    prev = ephem.previous_new_moon(now).datetime().date()
+    next = ephem.next_new_moon(now).datetime().date()
+
+    daysThisCycle = (next - prev).days
+
+    percentage = (now - prev).days / float(daysThisCycle) / 2
+    if percentage > 50:
+        return (50 - (percentage - 50)) * 2
+    else:
+        return percentage * 2
+
+def getLightPercentage(currentTime, dayStart, dayEnd):
+    totalSecondsThisDay = (dayEnd - dayStart).total_seconds()
+    currentSecondsThisDay = (currentTime - dayStart).total_seconds()
+
+    percentageOfTheDay = currentSecondsThisDay / totalSecondsThisDay * 100
+
+    blueSetting = getPercentageFromTimeline(blues, percentageOfTheDay)
+    whiteSetting = getPercentageFromTimeline(whites, percentageOfTheDay)
+    return (blueSetting, whiteSetting)
+
+def getPercentageFromTimeline(timeline, currentTime):
+    start = False
+    end = False
+    for (time, percentage) in timeline:
+        if time < currentTime:
+            start = (time, percentage)
+
+    for (time, percentage) in timeline[::-1]:
+        if time > currentTime:
+            end = (time, percentage)
+
+    if start == False or end == False:
+        return -1
+
+    endNormalized = end[0] - start[0]
+    currentNormalized = currentTime - start[0]
+
+    timePercentage = currentNormalized / endNormalized
+
+    valueDelta = end[1] - start[1]
+
+    return start[1] + (valueDelta * timePercentage)
+
+def setupLights(pi, bluePins, whitePins):
+    allPins = bluePins + whitePins
+    for pin in allPins:
+        pi.set_mode(pin, pigpio.OUTPUT)
+        pi.set_PWM_range(pin, 250)
+        pi.set_PWM_frequency(pin, 100)
+
+def setLight(pi, pins, percentage):
+    value = 250 * (percentage / 100.0)
+    for pin in pins:
+        pi.set_PWM_dutycycle(pin, value)
+
+setupLights(pi, bluePins, whitePins)
+
+while True:
+    (sunrise, sunset) = getSuntimes() 
+    (blue, white) = getLightPercentage(datetime.datetime.now(), sunrise, sunset)
+    if blue == -1 or white == -1:
+        percentage = getMoonphasePercentage()
+        print percentage
+        setLight(pi, bluePins, percentage * 1)
+        setLight(pi, whitePins, 0)
+    else:
+        setLight(pi, bluePins, blue)
+        setLight(pi, whitePins, white)
+    time.sleep(60)
