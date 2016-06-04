@@ -6,9 +6,7 @@ import requests
 from datetime import datetime
 from relay import *
 
-averageTimespendPumping = 0
 isPumping = False
-timeStartedToPump = 0
 
 needsWaterPin = 21
 enoughWaterPin = 17
@@ -22,9 +20,9 @@ def initialize():
 
 def signalHandler(signal, frame):
     print("Shutting down..")
-    GPIO.cleanup()
     setupRelayOUT(pumpRelayId)
     setRelay(pumpRelayId, False)
+    GPIO.cleanup()
 signal.signal(signal.SIGINT, signalHandler)
 
 def togglePump(active):
@@ -55,23 +53,10 @@ initialize()
 while True:
     if not isPumping and isActive(needsWaterPin, 20):
         isPumping = True
-        timeStartedToPump = time.time()
-        averageTimespendPumping = 1000
-        try:
-            r = requests.get("http://reef.xeli.eu/api/ato-events/averageDuration")
-            if r.status_code == 200:
-                json = r.json()
-	        averageTimespendPumping = json["duration"]
-        except requests.exceptions.RequestException:
-            print "Connection error"
-
         togglePump(True)
 
-    if isPumping:
-        print averageTimespendPumping
-	pumpingTooLong = (time.time() - timeStartedToPump) > (averageTimespendPumping * 2)
-        if isActive(enoughWaterPin, 2) or pumpingTooLong:
-            isPumping = False
-            togglePump(False)
+    if isPumping and isActive(enoughWaterPin, 2):
+        isPumping = False
+        togglePump(False)
 
     time.sleep(0.2)
