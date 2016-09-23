@@ -2,6 +2,7 @@
 
 import requests
 import datetime
+from datetime import timedelta
 import dateutil.parser
 import requests
 import time
@@ -9,11 +10,11 @@ import pigpio
 import ephem
 
 moon =   [  True,    False,    False,    False,     True]
-blues  = [(0, 0), (30, 20), (50, 80), (70, 80), (100, 0)]
-whites = [(0, 0), (30, 10), (50, 50), (70, 50), (100, 0)]
+blues  = [(0, 0), (20, 80), (65, 80), (95, 15), (100, 0)]
+whites = [(0, 0), (20, 70), (65, 70), (95, 0), (100, 0)]
 
-bluePins = [22, 9]
-whitePins = [10, 11]
+bluePins = [22, 24]
+whitePins = [14, 25]
 
 pi = pigpio.pi()
 
@@ -27,7 +28,7 @@ def getSuntimes():
     sun = ephem.Sun()
     sun.compute(home)
 
-    return (home.next_rising(sun).datetime(), home.next_setting(sun).datetime())
+    return (home.next_rising(sun).datetime() + timedelta(hours=1), home.next_setting(sun).datetime() + timedelta(hours=1))
 
 def getMoonphasePercentage():
     now = datetime.datetime.now().date()
@@ -47,6 +48,7 @@ def getLightPercentage(currentTime, dayStart, dayEnd):
     currentSecondsThisDay = (currentTime - dayStart).total_seconds()
 
     percentageOfTheDay = currentSecondsThisDay / totalSecondsThisDay * 100
+    print percentageOfTheDay
 
     blueSetting = getPercentageFromTimeline(blues, percentageOfTheDay)
     whiteSetting = getPercentageFromTimeline(whites, percentageOfTheDay)
@@ -103,7 +105,8 @@ setupLights(pi, bluePins, whitePins)
 
 while True:
     moonPercentage = getMoonphasePercentage()
-    (sunrise, sunset) = getSuntimes() 
+    sunrise = datetime.datetime.now().replace(hour=6, minute=30)
+    sunset = datetime.datetime.now().replace(hour=21, minute=00)
     (blue, white) = getLightPercentage(datetime.datetime.now(), sunrise, sunset)
     if blue == -1 or white == -1:
         setLight(pi, bluePins, moonPercentage * 1)
