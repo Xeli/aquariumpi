@@ -8,36 +8,24 @@ import datetime
 import time
 from dateutil import parser
 
-relayId = 1
 configFilePath = "relayTimers.conf"
-
-setupRelayOUT(relayId)
-forceUpdate = True
 
 configString = open(configFilePath)
 config = json.load(configString)
 
-status = {}
 for relaySetting in config["relays"]:
-    status[relaySetting["id"]] = False
     relaySetting["start"] = parser.parse(relaySetting["start"]).time()
     relaySetting["end"] = parser.parse(relaySetting["end"]).time()
+    setupRelayOUT(relaySetting["id"])
 
 while True:
     currentTime = datetime.datetime.now().time()
     for relaySetting in config["relays"]:
         currentlyInPeriod = currentTime > relaySetting["start"] and currentTime < relaySetting["end"]
-        needToToggle = (currentlyInPeriod and status[relaySetting["id"]] == relaySetting["stateOnDuringPeriod"]) or (not currentlyInPeriod and status[relaySetting["id"]] != relaySetting["stateOnDuringPeriod"])
-        if needToToggle or forceUpdate:
-            if currentlyInPeriod:
-                newState = relaySetting["stateOnDuringPeriod"]
-            else:
-                newState = not relaySetting["stateOnDuringPeriod"]
-            status[relaySetting["id"]] = newState
-            print "toggle at %s to state: %s" % (currentTime, newState)
-            setRelay(relayId, newState)
-            forceUpdate = False
+        if currentlyInPeriod:
+            newState = relaySetting["stateOnDuringPeriod"]
+        else:
+            newState = not relaySetting["stateOnDuringPeriod"]
+        print "toggle at %s to state: %s" % (currentTime, newState)
+        setRelay(relaySetting["id"], newState)
     time.sleep(60 * 5)
-
-pprint.pprint(status)
-print "test"
