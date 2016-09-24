@@ -7,6 +7,7 @@ from datetime import datetime
 from relay import *
 
 isPumping = False
+startedPumping = None
 
 needsWaterPin = 21
 enoughWaterPin = 17
@@ -53,9 +54,10 @@ initialize()
 while True:
     if not isPumping and isActive(needsWaterPin, 20):
         isPumping = True
+        startedPumping = datetime.now()
         togglePump(True)
 
-    if isPumping and isActive(enoughWaterPin, 2):
+    if isPumping and (((datetime.now() - startedPumping).seconds > 10) or isActive(enoughWaterPin, 2)):
         isPumping = False
         togglePump(False)
 
