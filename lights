@@ -10,8 +10,8 @@ import pigpio
 import ephem
 
 moon =   [  True,    False,    False,    False,     True]
-blues  = [(0, 0), (20, 80), (65, 80), (95, 15), (100, 0)]
-whites = [(0, 0), (20, 70), (65, 70), (95, 0), (100, 0)]
+blues  = [(0, 0), (20, 80), (65, 80), (95, 10), (100, 0)]
+whites = [(0, 0), (20, 70), (65, 50), (95, 5), (100, 0)]
 
 bluePins = [22, 24]
 whitePins = [14, 25]
@@ -106,7 +106,7 @@ setupLights(pi, bluePins, whitePins)
 while True:
     moonPercentage = getMoonphasePercentage()
     sunrise = datetime.datetime.now().replace(hour=6, minute=30)
-    sunset = datetime.datetime.now().replace(hour=21, minute=00)
+    sunset = datetime.datetime.now().replace(hour=20, minute=30)
     (blue, white) = getLightPercentage(datetime.datetime.now(), sunrise, sunset)
     if blue == -1 or white == -1:
         setLight(pi, bluePins, moonPercentage * 1)
