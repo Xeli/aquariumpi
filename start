@@ -16,7 +16,3 @@ echo "Started lights: $!"
 
 ./relayTimers >> $logDir/relayTimers.log 2>&1 &
 echo "Started relayTimers: $!"
-
-cd ph
-sudo ./pHReader >> $logDir/ph.log 2>&1 &
-echo "Started PH: $!"
